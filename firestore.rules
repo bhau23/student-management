@@ -1,0 +1,174 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // ── Helper: get role from custom Auth claim ──────────────────────────────
+    function role() {
+      return request.auth != null ? request.auth.token.role : '';
+    }
+
+    // FIXED: was `return true` (database was world-open). Now a real check.
+    function isAdmin() {
+      return request.auth != null
+        && (request.auth.token.role == 'admin' || request.auth.token.role == 'super_admin');
+    }
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.role == 'super_admin';
+    }
+
+    // ── Helpers: resolve linked IDs from custom claims ───────────────────────
+    function myStudentId() {
+      return request.auth != null ? request.auth.token.linkedId : '';
+    }
+    function myTutorId() {
+      return request.auth != null ? request.auth.token.linkedId : '';
+    }
+
+    // ── /users ────────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow write: if isSuperAdmin();
+    }
+
+    // ── /subjects ─────────────────────────────────────────────────────────────
+    // Subject names are non-sensitive; any signed-in user may read.
+    match /subjects/{id} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // ── /tutors ───────────────────────────────────────────────────────────────
+    // FIXED: was world-readable to every signed-in user (exposed tutor email/salary
+    // to students). Now only admins and the tutor themselves.
+    // NOTE: student-facing pages must NOT read this collection anymore — use the
+    // denormalized `tutorName` on enrollments / class_sessions instead.
+    match /tutors/{id} {
+      allow read: if isAdmin()
+        || (role() == 'tutor' && resource.data.authUid == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    // ── /students ─────────────────────────────────────────────────────────────
+    match /students/{id} {
+      allow read: if isAdmin()
+        || (role() == 'student' && resource.data.authUid == request.auth.uid)
+        || (role() == 'tutor' && tutorTeachesStudent(id));
+      allow write: if isAdmin();
+    }
+
+    // Tutor teaches student if the student doc's tutorIds array contains this tutor's linkedId.
+    function tutorTeachesStudent(studentId) {
+      return request.auth != null
+        && request.auth.token.linkedId in
+           get(/databases/$(db)/documents/students/$(studentId)).data.tutorIds;
+    }
+
+    // ── /enrollments ──────────────────────────────────────────────────────────
+    match /enrollments/{id} {
+      allow read: if isAdmin()
+        || (role() == 'student' && resource.data.studentId == myStudentId())
+        || (role() == 'tutor'   && resource.data.tutorId   == myTutorId());
+      allow write: if isAdmin();
+    }
+
+    // ── /meetingCodeIndex ────────────────────────────────────────────────────
+    match /meetingCodeIndex/{code} {
+      allow read: if isAdmin() || role() == 'tutor';
+      allow write: if isAdmin();
+    }
+
+    // ── /class_sessions ───────────────────────────────────────────────────────
+    match /class_sessions/{id} {
+      allow read: if isAdmin()
+        || (role() == 'student' && resource.data.studentId == myStudentId())
+        || (role() == 'tutor'   && resource.data.tutorId   == myTutorId());
+      // Admins can override; tutors can mark attendance notes on their own classes.
+      allow update: if isAdmin()
+        || (role() == 'tutor' 
+            && resource.data.tutorId == myTutorId()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tutorNote', 'updatedAt']));
+      // Create/delete only via Admin SDK (ingestion function).
+      allow create, delete: if false;
+    }
+
+    // ── /attendance_raw ───────────────────────────────────────────────────────
+    match /attendance_raw/{id} {
+      allow read: if isAdmin();
+      allow write: if false; // Admin SDK only
+    }
+
+    // ── /audit_log ────────────────────────────────────────────────────────────
+    match /audit_log/{id} {
+      allow read: if isAdmin();
+      allow write: if false; // Admin SDK only
+    }
+
+    // ── /_system ──────────────────────────────────────────────────────────────
+    match /_system/{doc=**} {
+      allow read, write: if false; // Admin SDK only
+    }
+    // ── /fees ─────────────────────────────────────────────────────────────────
+    match /fees/{id} {
+      allow read: if isAdmin() || (request.auth.token.role == 'student' && resource.data.studentId == myStudentId());
+      allow write: if false; // Admin SDK only
+    }
+
+    // ── /payments ─────────────────────────────────────────────────────────────
+    match /payments/{id} {
+      allow read: if isAdmin() || (request.auth.token.role == 'student' && resource.data.studentId == myStudentId());
+      allow write: if false; // Admin SDK only
+    }
+
+    // ── /salaries ─────────────────────────────────────────────────────────────
+    match /salaries/{id} {
+      allow read: if isAdmin() || (request.auth.token.role == 'tutor' && resource.data.tutorId == myTutorId());
+      allow write: if false; // Admin SDK only
+    }
+
+    // ── /tests ────────────────────────────────────────────────────────────────
+    match /tests/{id} {
+      allow read: if isAdmin()
+        || (role() == 'student' && resource.data.studentId == myStudentId())
+        || (role() == 'tutor'   && resource.data.tutorId   == myTutorId());
+      // Tutor may only create tests for students they actually teach, attributed to themselves.
+      allow create: if isAdmin()
+        || (role() == 'tutor'
+            && request.resource.data.tutorId == myTutorId()
+            && tutorTeachesStudent(request.resource.data.studentId));
+      allow update, delete: if isAdmin()
+        || (role() == 'tutor' && resource.data.tutorId == myTutorId());
+    }
+
+    // ── /test_results ─────────────────────────────────────────────────────────
+    match /test_results/{id} {
+      allow read: if isAdmin()
+        || (role() == 'student' && resource.data.studentId == myStudentId())
+        || (role() == 'tutor'   && resource.data.tutorId   == myTutorId());
+      allow write: if isAdmin()
+        || (role() == 'tutor' && request.resource.data.tutorId == myTutorId());
+    }
+
+    // ── /ptms ─────────────────────────────────────────────────────────────────
+    match /ptms/{id} {
+      allow read: if isAdmin()
+        || (role() == 'student' && resource.data.studentId == myStudentId())
+        || (role() == 'tutor'   && resource.data.tutorId   == myTutorId());
+      allow create: if isAdmin()
+        || (role() == 'tutor'
+            && request.resource.data.tutorId == myTutorId()
+            && tutorTeachesStudent(request.resource.data.studentId));
+      allow update, delete: if isAdmin()
+        || (role() == 'tutor' && resource.data.tutorId == myTutorId());
+    }
+
+    // ── /leads ────────────────────────────────────────────────────────────────
+    match /leads/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── /notifications ────────────────────────────────────────────────────────
+    match /notifications/{id} {
+      allow read, write: if false; // Admin SDK only (deduplication boundary)
+    }
+  }
+}
