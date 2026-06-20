@@ -3,6 +3,7 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { avgPct } from '@/lib/academicHelpers';
 
 export async function POST(req: NextRequest) {
+  return NextResponse.json({ error: 'Sanity Check Error' }, { status: 400 });
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
