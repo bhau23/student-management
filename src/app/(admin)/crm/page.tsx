@@ -10,6 +10,7 @@ import { Lead, LeadStage, LeadSource } from '@/lib/types';
 import dayjs from 'dayjs';
 import { Plus, MessageSquare, Check, X, Phone, User, MoveRight } from 'lucide-react';
 import Link from 'next/link';
+import InfoGuide from '@/components/InfoGuide';
 
 const STAGES: { id: LeadStage; label: string; color: string }[] = [
   { id: 'new', label: 'New', color: 'var(--primary)' },
@@ -147,8 +148,21 @@ export default function LeadCRMPage() {
 
   return (
     <div className="page-body" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div className="page-header">
-        <div><h1>Lead CRM</h1><div className="subtitle">Track inquiries to enrollment</div></div>
+      <div className="page-header" style={{ marginBottom: 20 }}>
+        <div>
+          <h1>
+            Lead CRM
+            <InfoGuide title="CRM Guide">
+              <p style={{ marginBottom: 12 }}>The Customer Relationship Manager tracks prospective student inquiries.</p>
+              <ul style={{ paddingLeft: 20, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li><strong>Pipeline:</strong> Leads start as "New". As you contact them or offer a trial class, change their status to move them across the board.</li>
+                <li><strong>Conversion:</strong> Moving a lead to "Converted" means they have enrolled. You must separately create a Student record for them.</li>
+                <li><strong>Expected Value:</strong> The estimated fee revenue this lead could bring. This is summarized in the Command Center metrics.</li>
+              </ul>
+            </InfoGuide>
+          </h1>
+          <div className="subtitle">Track inquiries to enrollment</div>
+        </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}><Plus size={16} /> New Lead</button>
       </div>
 

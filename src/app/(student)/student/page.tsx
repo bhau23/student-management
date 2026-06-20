@@ -8,8 +8,9 @@ import {
 } from 'firebase/firestore';
 import StatusBadge from '@/components/StatusBadge';
 import {
-  BookOpen, CalendarDays, BarChart3, Clock, ExternalLink,
+  Calendar, CheckCircle, Clock, BookOpen, User, Star
 } from 'lucide-react';
+import InfoGuide from '@/components/InfoGuide';
 
 interface Enrollment {
   id: string;
@@ -117,7 +118,17 @@ export default function StudentOverview() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>Welcome back 👋</h1>
+          <h1>
+            Welcome back 👋
+            <InfoGuide title="Student Dashboard">
+              <p style={{ marginBottom: 12 }}>Welcome to your Tutrain portal! Here you can keep track of everything related to your classes.</p>
+              <ul style={{ paddingLeft: 20, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li><strong>Attendance:</strong> Ensure your attendance stays above 75%. Click on the Attendance tab on the left for detailed records.</li>
+                <li><strong>Class Schedule:</strong> View your upcoming classes and test sessions.</li>
+                <li><strong>Fees:</strong> Keep track of your monthly fee invoices and avoid overdue payments.</li>
+              </ul>
+            </InfoGuide>
+          </h1>
           <p className="subtitle">Here&apos;s your learning overview for this month</p>
         </div>
       </div>

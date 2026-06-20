@@ -10,6 +10,8 @@ import {
   CheckCircle, Clock, XCircle,
 } from 'lucide-react';
 
+import InfoGuide from '@/components/InfoGuide';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FinanceBlock {
   revenue: number;
@@ -85,7 +87,16 @@ export default function CommandCenterPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ period: p }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || 'Failed to load stats');
+      if (!res.ok) {
+        let errStr = 'Failed to load stats';
+        try {
+          const data = await res.json();
+          errStr = data.error;
+        } catch {
+          errStr = `Server Error: ${res.status} ${res.statusText}. Please check Firebase credentials.`;
+        }
+        throw new Error(errStr);
+      }
       setData(await res.json());
     } catch (e: any) {
       setError(e.message);
@@ -101,7 +112,24 @@ export default function CommandCenterPage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="page-header" style={{ marginBottom: 24 }}>
         <div>
-          <h1>Command Center</h1>
+          <h1>
+            Command Center
+            <InfoGuide title="Command Center Guide">
+              <p style={{ marginBottom: 12 }}>The <strong>Command Center</strong> is your high-level overview of the entire institution's health.</p>
+              
+              <ul style={{ paddingLeft: 20, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li><strong>Operations:</strong> Monitor student attendance, scheduled PTMs, and test averages. A red percentage indicates critical attention is required.</li>
+                <li><strong>Alerts:</strong> Pay close attention to the Action Required section. Unmapped sessions mean a tutor conducted a class but it hasn't been assigned to a student's billing cycle yet.</li>
+                <li><strong>CRM Funnel:</strong> Track how many prospective leads converted into actual enrollments this month.</li>
+              </ul>
+
+              {isSuperAdmin && (
+                <div style={{ padding: 12, background: 'rgba(59, 130, 246, 0.1)', borderLeft: '3px solid #3b82f6', borderRadius: '0 8px 8px 0', marginTop: 12 }}>
+                  <strong>Director Note:</strong> You have exclusive access to the <strong>Finance</strong> block, which gives you real-time Net Margin and Salary Liability metrics based on completed classes.
+                </div>
+              )}
+            </InfoGuide>
+          </h1>
           <div className="subtitle">
             {isSuperAdmin ? 'Director view — full finance + operations' : 'Operations view — academic & student metrics'}
           </div>

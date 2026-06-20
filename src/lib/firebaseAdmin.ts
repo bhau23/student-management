@@ -12,16 +12,29 @@ function getAdminApp(): App {
   const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
   if (serviceAccountKey) {
-    const serviceAccount = JSON.parse(serviceAccountKey);
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    try {
+      let rawKey = serviceAccountKey.trim();
+      // Remove surrounding single quotes if pasted accidentally into Vercel UI
+      if (rawKey.startsWith("'") && rawKey.endsWith("'")) {
+        rawKey = rawKey.slice(1, -1);
+      }
+      
+      const serviceAccount = JSON.parse(rawKey);
+      if (serviceAccount.private_key) {
+        // Ensure newlines in private key are correctly interpreted
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+      app = initializeApp({
+        credential: cert(serviceAccount),
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      });
+    } catch (e: any) {
+      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:', e.message);
+      throw new Error(`Firebase Admin Initialization Error: Invalid FIREBASE_SERVICE_ACCOUNT_KEY JSON format. Ensure you pasted the exact JSON string into Vercel.`);
     }
-    app = initializeApp({
-      credential: cert(serviceAccount),
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    });
   } else {
-    // Fall back to application default credentials
+    console.warn('FIREBASE_SERVICE_ACCOUNT_KEY is not set. Falling back to Application Default Credentials.');
+    // Fall back to application default credentials (mostly for local development with gcloud auth)
     app = initializeApp({
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     });

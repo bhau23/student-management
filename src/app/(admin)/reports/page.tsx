@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import dayjs from 'dayjs';
 import { Download, FileText, AlertTriangle } from 'lucide-react';
+import InfoGuide from '@/components/InfoGuide';
 
 const REPORT_TYPES = [
   { id: 'students', label: 'Students Roster', desc: 'All current and past students.' },
@@ -39,8 +40,14 @@ export default function ReportsPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Export failed');
+        let errStr = 'Export failed';
+        try {
+          const data = await res.json();
+          errStr = data.error || errStr;
+        } catch {
+          errStr = `Server Error: ${res.status} ${res.statusText}. Please check Firebase credentials.`;
+        }
+        throw new Error(errStr);
       }
 
       // Handle file download
@@ -64,7 +71,17 @@ export default function ReportsPage() {
     <div className="page-body">
       <div className="page-header" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Reports & Exports</h1>
+          <h1>
+            Reports & Exports
+            <InfoGuide title="Reports Guide">
+              <p style={{ marginBottom: 12 }}>Download raw platform data in CSV format for analysis in Excel or Google Sheets.</p>
+              <ul style={{ paddingLeft: 20, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li><strong>Students Roster:</strong> Contains all registered students regardless of the selected period.</li>
+                <li><strong>Attendance Records:</strong> A row for every class session conducted within the selected month. Useful for auditing tutor hours.</li>
+                <li><strong>Finance Reports:</strong> Only available to the Super Admin. Contains highly sensitive revenue and payroll data.</li>
+              </ul>
+            </InfoGuide>
+          </h1>
           <div className="subtitle">Download platform data as CSV</div>
         </div>
       </div>
