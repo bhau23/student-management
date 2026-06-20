@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore';
 import StatusBadge from '@/components/StatusBadge';
 import {
-  Calendar, CheckCircle, Clock, BookOpen, User, Star
+  Calendar, CheckCircle, Clock, BookOpen, User, Star, CalendarDays, BarChart3, ExternalLink
 } from 'lucide-react';
 import InfoGuide from '@/components/InfoGuide';
 
